@@ -64,6 +64,14 @@ def get_data_path():
     return base
 
 
+def get_static_path():
+    if getattr(sys, "frozen", False):
+        base = sys._MEIPASS
+    else:
+        base = os.path.dirname(os.path.abspath(__file__))
+    return os.path.join(base, "static")
+
+
 def compute_checksum(filepath):
     h = hashlib.sha256()
     with open(filepath, "rb") as f:
@@ -133,12 +141,12 @@ def write_cache(api_name, data):
 
 @app.route("/")
 def index():
-    return send_from_directory("static", "index.html")
+    return send_from_directory(get_static_path(), "index.html")
 
 
 @app.route("/static/<path:filename>")
 def static_files(filename):
-    return send_from_directory("static", filename)
+    return send_from_directory(get_static_path(), filename)
 
 
 @app.route("/api/data")
