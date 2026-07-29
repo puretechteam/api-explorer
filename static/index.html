@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>API Explorer</title>
+<link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+<header>
+<h1>API Explorer</h1>
+<div class="search-bar">
+<input type="text" id="searchInput" placeholder="Search APIs by name, description, or tags..." autocomplete="off">
+<button id="searchBtn">Search</button>
+<button id="resetBtn">Reset</button>
+</div>
+<div class="filter-row">
+<select id="categoryFilter">
+<option value="">All Categories</option>
+</select>
+<span id="resultCount"></span>
+</div>
+</header>
+<main>
+<div id="staleIndicator" class="error-banner">
+<span class="dismiss" id="dismissStale">&times;</span>
+Data may be stale. Showing cached results.
+</div>
+<section id="recentlyViewedSection">
+<h2>Recently Viewed</h2>
+<div id="recentlyViewedList" class="recently-viewed-grid"></div>
+<p id="noRecent" class="empty-message">No recently viewed APIs.</p>
+</section>
+<section id="favoritesSection">
+<h2>Favorites</h2>
+<div id="favoritesList" class="favorites-grid"></div>
+<p id="noFavorites" class="empty-message">No favorites yet. Click the star icon on any API card to add one.</p>
+</section>
+<section id="discoverSection">
+<h2>Explore APIs</h2>
+<div id="discoverGrid" class="discover-grid"></div>
+</section>
+<section id="popularSection">
+<h2>Popular APIs</h2>
+<div id="popularList" class="popular-grid"></div>
+</section>
+<section id="apisSection">
+<div id="apiGrid" class="api-grid"></div>
+<p id="noResults" class="empty-message" style="display:none;">No APIs match your search or filter.</p>
+</section>
+</main>
+<div id="overlay" class="overlay"></div>
+<div id="detailPanel" class="detail-panel" style="display:none;">
+<div class="detail-header">
+<h2 id="detailName"></h2>
+<button id="closeDetail" class="close-btn">&times;</button>
+</div>
+<div class="detail-body">
+<p id="detailCategory" class="detail-badge"></p>
+<p id="detailDescription" class="detail-description"></p>
+<div class="detail-field">
+<span class="detail-label">Auth Method:</span>
+<span id="detailAuth"></span>
+</div>
+<div class="detail-field">
+<span class="detail-label">Rate Limit:</span>
+<span id="detailRateLimit"></span>
+</div>
+<div class="detail-field">
+<span class="detail-label">Endpoints:</span>
+<ul id="detailEndpoints"></ul>
+</div>
+<div class="detail-field">
+<span class="detail-label">Tags:</span>
+<div id="detailTags" class="detail-tags"></div>
+</div>
+<div class="detail-field">
+<span class="detail-label">Documentation:</span>
+<a id="detailDocs" href="#" target="_blank" rel="noopener">View Docs</a>
+</div>
+<div class="detail-field">
+<span class="detail-label">cURL:</span>
+<div class="curl-container">
+<code id="curlSnippet" class="curl-code"></code>
+<button id="copyCurl" class="copy-btn">Copy</button>
+</div>
+</div>
+<div class="detail-field">
+<button id="toggleFavorite" class="favorite-btn">Add to Favorites</button>
+</div>
+</div>
+</div>
+<script src="/static/js/favorites.js"></script>
+<script src="/static/js/explorer.js"></script>
+</body>
+</html>
