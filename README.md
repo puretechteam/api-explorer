@@ -72,6 +72,22 @@ docker-compose up
 
 > **Note:** The Makefile is the preferred build tool and provides cross-platform support for all development workflows.
 
+## Testing
+
+Run the test suite with:
+
+```
+make test
+```
+
+Or directly with pytest:
+
+```
+pytest
+```
+
+Tests cover the Flask application routes, data loading, schema validation, and checksum verification.
+
 ## Features
 
 - **Dark Theme** — Modern dark UI with high-contrast colors for comfortable browsing
