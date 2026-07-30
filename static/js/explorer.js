@@ -267,9 +267,39 @@ span.textContent = tag;
 tagsContainer.appendChild(span);
 });
 
-const curl = `curl -X GET "${api.docs_url}" \\
-  -H "Authorization: Bearer YOUR_API_KEY"`;
-document.getElementById('curlSnippet').textContent = curl;
+const auth = api.auth || '';
+const authLower = auth.toLowerCase();
+let curlCmd = `curl -X GET "${api.docs_url}"`;
+if (authLower === 'none') {
+curlCmd += '';
+} else if (authLower.includes('bearer') || authLower.includes('oauth') || authLower.includes('token') || authLower.includes('bot token')) {
+curlCmd += ` \\
+  -H "Authorization: Bearer YOUR_TOKEN"`;
+} else if (authLower.includes('basic') || authLower.includes('password')) {
+curlCmd += ` \\
+  -u username:password`;
+} else if (authLower.includes('api key') && authLower.includes('secret')) {
+curlCmd += ` \\
+  -H "x-api-key: YOUR_API_KEY" \\
+  -H "x-api-secret: YOUR_API_SECRET"`;
+} else if (authLower.includes('api key')) {
+curlCmd += ` \\
+  -H "x-api-key: YOUR_API_KEY"`;
+} else if (authLower.includes('consumer key') || authLower.includes('access key')) {
+curlCmd += ` \\
+  -H "x-api-key: YOUR_API_KEY"`;
+} else if (authLower.includes('write key')) {
+curlCmd += ` \\
+  -H "x-write-key: YOUR_WRITE_KEY"`;
+} else if (authLower.includes('aws') || authLower.includes('iam') || authLower.includes('signature')) {
+curlCmd += ` \\
+  -H "x-amz-date: TIMESTAMP" \\
+  -H "Authorization: AWS4-HMAC-SHA256 Credential=YOUR_ACCESS_KEY/..."`;
+} else {
+curlCmd += ` \\
+  -H "Authorization: Bearer YOUR_TOKEN"`;
+}
+document.getElementById('curlSnippet').textContent = curlCmd;
 
 const favBtn = document.getElementById('toggleFavorite');
 const isFav = FavoritesManager.isFavorite(api.name);

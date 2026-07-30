@@ -1,6 +1,76 @@
 # API Explorer
 
+[![Python](https://img.shields.io/badge/Python-3.12-blue)](https://www.python.org/)
+[![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
+[![Version](https://img.shields.io/badge/Version-0.1.0-orange)](CHANGELOG.md)
+
 A desktop application for exploring and searching public APIs. Browse hundreds of APIs across categories including finance, social, weather, maps, email, storage, AI, music, video, news, sports, health, crypto, ecommerce, and developer tools.
+
+## Contents
+
+- [Contributing](CONTRIBUTING.md)
+- [License](LICENSE)
+- [Security](SECURITY.md)
+
+## Development
+
+### Prerequisites
+
+- Python 3.12+
+- pip
+
+### Setup
+
+1. Install dependencies:
+   ```
+   make install
+   ```
+   Or manually:
+   ```
+   pip install -r requirements.txt
+   ```
+
+### Running the App
+
+```
+make run
+```
+
+### Building the Executable
+
+```
+make build
+```
+
+### Running Tests
+
+```
+make test
+```
+
+### Linting
+
+```
+make lint
+```
+
+### Formatting
+
+```
+make format
+```
+
+### Docker
+
+```
+make docker-run
+```
+Or:
+```
+docker-compose up
+```
+
+> **Note:** The Makefile is the preferred build tool and provides cross-platform support for all development workflows.
 
 ## Features
 
@@ -15,14 +85,9 @@ A desktop application for exploring and searching public APIs. Browse hundreds o
 - **Discover Section** — Visual category cards with color-coded icons and hover effects
 - **Popular APIs** — Mini-section highlighting the top 5 APIs by endpoint count
 
-## Changes Log
+## Changelog
 
-### Recent Updates
-- **Expanded API dataset** from 328 to 441 APIs across 15 categories (finance, social, weather, maps, email, storage, AI, music, video, news, sports, health, crypto, ecommerce, developer tools)
-- **Enhanced Discover section** with color-coded category cards, animated hover effects (scale, lift, icon zoom), and a new "Popular APIs" mini-section showing the top 5 APIs by endpoint count
-- **Polished card layouts** — increased grid gap (16px → 20px), card padding (10px 12px → 14px 16px), and smooth hover transitions (0.25s ease)
-- **Improved header** — better alignment, increased padding, focused search bar with glow effect, and smoother button interactions
-- **Updated checksum** for data integrity verification
+See [CHANGELOG.md](CHANGELOG.md) for the full changelog.
 
 ## Setup
 
@@ -30,30 +95,59 @@ A desktop application for exploring and searching public APIs. Browse hundreds o
 
 1. Install dependencies:
    ```
-   pip install -r requirements.txt
+   make install
    ```
 
 2. Run the Flask development server:
    ```
-   python app.py
+   make run
    ```
 
 3. Open http://localhost:5000 in your browser.
+
+### Development Dependencies
+
+For development and testing, install:
+```
+make install-dev
+```
 
 ### PyInstaller Build
 
 1. Ensure dependencies are installed (see above).
 
-2. Run the build script:
+2. Run the build:
    ```
-   build.bat
+   make build
    ```
 
-3. The output executable will be in `dist\api-explorer-<VERSION>\`.
+3. The output executable will be in `dist/api-explorer-<VERSION>/`.
+
+## Docker
+
+### Building the Image
+
+```
+docker build -t api-explorer .
+```
+
+### Running the Container
+
+```
+docker run -p 5000:5000 api-explorer
+```
+
+### Using Docker Compose
+
+```
+docker-compose up -d
+```
+
+This starts the Flask app in development mode with source code mounted for live reloading.
 
 ## Data Sources
 
-The application bundles a dataset of 441+ public APIs in `data/apis.json`. Data categories include:
+The application bundles a dataset of 461 public APIs in `data/apis.json`. Data categories include:
 
 - Finance, Crypto, AI, Developer, Ecommerce, Email, Maps, Music, News, Sports, Storage, Video, Weather, Social, Health
 
@@ -66,6 +160,14 @@ The app also supports fetching live data from public APIs via proxy endpoints (`
 - **Configuration** should be stored in `.env` files (excluded from version control).
 - **Production mode** disables debug output and does not leak stack traces.
 
+## Roadmap
+
+- Add API key management for authenticated endpoints
+- Support for OpenAPI/Swagger spec import
+- Rate limiting visualization per API
+- Bookmark collections for grouping related APIs
+- API documentation generation from fetched data
+
 ## Project Structure
 
 ```
@@ -73,12 +175,14 @@ api-explorer/
 ├── app.py                  # Flask backend with proxy and caching
 ├── build.bat               # PyInstaller build script
 ├── dependencies.bat        # Dependency installer
-├── requirements.txt        # Python dependencies
+├── requirements.txt        # Runtime dependencies
+├── requirements-build.txt  # Build-time dependencies (PyInstaller)
+├── requirements-dev.txt    # Development dependencies
 ├── VERSION                 # Version number
 ├── .gitignore              # Git ignore rules
 ├── README.md               # This file
 ├── data/
-│   ├── apis.json           # Bundled API dataset (441+ APIs)
+│   ├── apis.json           # Bundled API dataset (461 APIs)
 │   └── apis.json.sha256    # Checksum for integrity verification
 ├── cache/                  # Runtime cache for fetched data
 └── static/
@@ -93,4 +197,8 @@ api-explorer/
 
 ## License
 
-This project is part of the Trendsetter product line.
+This project is licensed under the [MIT License](LICENSE). Copyright (c) 2026 Pure Tech.
+
+## Security
+
+Please see the [Security Policy](SECURITY.md) for vulnerability reporting guidelines.

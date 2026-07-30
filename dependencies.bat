@@ -10,7 +10,7 @@ set PASS_COUNT=0
 set FAIL_COUNT=0
 
 echo [1] Checking Python on PATH...
-python --version >nul 2>&1
+python --version
 if %ERRORLEVEL% EQU 0 (
     echo   [OK] Python is available
     set /a PASS_COUNT+=1
@@ -21,7 +21,7 @@ if %ERRORLEVEL% EQU 0 (
 
 echo.
 echo [2] Checking pip availability...
-pip --version >nul 2>&1
+pip --version
 if %ERRORLEVEL% EQU 0 (
     echo   [OK] pip is available
     set /a PASS_COUNT+=1
@@ -32,7 +32,7 @@ if %ERRORLEVEL% EQU 0 (
 
 echo.
 echo [3] Installing requirements from requirements.txt...
-pip install -r requirements.txt >nul 2>&1
+pip install -r requirements.txt
 if %ERRORLEVEL% EQU 0 (
     echo   [OK] Requirements installed successfully
     set /a PASS_COUNT+=1
@@ -43,13 +43,13 @@ if %ERRORLEVEL% EQU 0 (
 
 echo.
 echo [4] Checking PyInstaller...
-pyinstaller --version >nul 2>&1
+pyinstaller --version
 if %ERRORLEVEL% EQU 0 (
     echo   [OK] PyInstaller is installed
     set /a PASS_COUNT+=1
 ) else (
     echo   PyInstaller not found. Installing...
-    pip install pyinstaller >nul 2>&1
+    pip install pyinstaller
     if %ERRORLEVEL% EQU 0 (
         echo   [OK] PyInstaller installed successfully
         set /a PASS_COUNT+=1

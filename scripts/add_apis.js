@@ -1,6 +1,7 @@
 const fs = require('fs');
-const path = 'C:/Users/Tanner/KiloProjects/trendsetter/api-explorer/data/apis.json';
-const data = JSON.parse(fs.readFileSync(path, 'utf8'));
+const path = require('path');
+const apisPath = path.join(__dirname, '..', 'data', 'apis.json');
+const data = JSON.parse(fs.readFileSync(apisPath, 'utf8'));
 const existingNames = new Set(data.map(a => a.name));
 
 const newEntries = [
@@ -41,5 +42,5 @@ const newEntries = [
 const toAdd = newEntries.filter(e => !existingNames.has(e.name));
 console.log('New unique entries to add:', toAdd.length);
 data.push(...toAdd);
-fs.writeFileSync(path, JSON.stringify(data, null, 2) + '\n');
+fs.writeFileSync(apisPath, JSON.stringify(data, null, 2) + '\n');
 console.log('Total entries:', data.length);

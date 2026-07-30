@@ -1,8 +1,17 @@
+"""API Explorer backend server.
+
+Provides a Flask-based web application for exploring REST APIs,
+including a proxy endpoint, caching, and data validation.
+"""
+
 import os
 import sys
 import json
 import hashlib
-import threading
+import ipaddress
+import time
+import logging
+from typing import Any, Dict, List, Optional, Tuple, Union
 from flask import Flask, jsonify, send_from_directory, request
 
 try:
@@ -12,11 +21,24 @@ except ImportError:
 
 app = Flask(__name__, static_folder="static", static_url_path="/static")
 
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    handlers=[
+        logging.FileHandler(os.path.join(os.path.dirname(os.path.abspath(__file__)), "api-explorer.log")),
+        logging.StreamHandler()
+    ]
+)
+
 DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
 CACHE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cache")
 BUNDLED_APIS_FILE = os.path.join(DATA_DIR, "apis.json")
 
 SCHEMA_REQUIRED_FIELDS = ["name", "category", "description", "auth", "rate_limit", "endpoints", "docs_url", "tags"]
+
+PROXY_RATE_LIMIT_WINDOW = 30
+PROXY_RATE_LIMIT_MAX_REQUESTS = 1
+_proxy_rate_limit_store = {}
 
 PROXY_ENDPOINTS = {
     "stripe": "https://api.stripe.com/v1",
@@ -39,7 +61,6 @@ PROXY_ENDPOINTS = {
     "supabase": "https://api.supabase.com/v1",
     "vercel": "https://api.vercel.com",
     "netlify": "https://api.netlify.com",
-    "aws": "https://api.aws.amazon.com",
     "gcp": "https://cloud.google.com/apis",
     "azure": "https://management.azure.com",
     "dockerhub": "https://hub.docker.com/v2",
@@ -52,27 +73,113 @@ PROXY_ENDPOINTS = {
     "googlemaps": "https://maps.googleapis.com/maps/api",
     "here": "https://router.hereapi.com/v8",
     "tomtom": "https://api.tomtom.com",
-    "mapzen": "https://mapzen.com/api",
 }
 
 
-def get_data_path():
+def is_safe_url(url: str) -> bool:
+    """Check if a URL is safe for proxying.
+
+    Validates that the URL uses HTTPS and does not target
+    private or internal IP ranges (SSRF protection).
+
+    Args:
+        url: The URL to validate.
+
+    Returns:
+        True if the URL is safe, False otherwise.
+    """
+    if not url.startswith("https://"):
+        return False
+    try:
+        from urllib.parse import urlparse
+        parsed = urlparse(url)
+        hostname = parsed.hostname
+        if not hostname:
+            return False
+        addr = ipaddress.ip_address(hostname)
+        if addr.is_private or addr.is_loopback or addr.is_link_local:
+            return False
+    except ValueError:
+        pass
+    private_ranges = [
+        ipaddress.ip_network("127.0.0.0/8"),
+        ipaddress.ip_network("10.0.0.0/8"),
+        ipaddress.ip_network("172.16.0.0/12"),
+        ipaddress.ip_network("192.168.0.0/16"),
+        ipaddress.ip_network("169.254.0.0/16"),
+    ]
+    try:
+        addr = ipaddress.ip_address(hostname)
+        for network in private_ranges:
+            if addr in network:
+                return False
+    except ValueError:
+        pass
+    return True
+
+
+def check_rate_limit(ip: str) -> bool:
+    """Check if an IP address is within the rate limit.
+
+    Allows at most one request per PROXY_RATE_LIMIT_WINDOW
+    seconds per IP address.
+
+    Args:
+        ip: The client IP address.
+
+    Returns:
+        True if the request is allowed, False if rate-limited.
+    """
+    now = time.time()
+    if ip in _proxy_rate_limit_store:
+        timestamps = [t for t in _proxy_rate_limit_store[ip] if now - t < PROXY_RATE_LIMIT_WINDOW]
+        _proxy_rate_limit_store[ip] = timestamps
+        if len(timestamps) >= PROXY_RATE_LIMIT_MAX_REQUESTS:
+            return False
+    else:
+        _proxy_rate_limit_store[ip] = []
+    _proxy_rate_limit_store[ip].append(now)
+    return True
+
+
+def get_path(subdir: str) -> str:
+    """Get the absolute path to a subdirectory of the project.
+
+    Resolves correctly whether the application is running
+    as a frozen PyInstaller bundle or as a regular Python script.
+
+    Args:
+        subdir: The subdirectory name (e.g., 'data', 'static').
+
+    Returns:
+        The absolute path to the requested subdirectory.
+    """
     if getattr(sys, "frozen", False):
         base = sys._MEIPASS
     else:
         base = os.path.dirname(os.path.abspath(__file__))
-    return base
+    return os.path.join(base, subdir)
 
 
-def get_static_path():
-    if getattr(sys, "frozen", False):
-        base = sys._MEIPASS
-    else:
-        base = os.path.dirname(os.path.abspath(__file__))
-    return os.path.join(base, "static")
+def get_data_path() -> str:
+    """Get the absolute path to the data directory."""
+    return get_path("data")
 
 
-def compute_checksum(filepath):
+def get_static_path() -> str:
+    """Get the absolute path to the static files directory."""
+    return get_path("static")
+
+
+def compute_checksum(filepath: str) -> str:
+    """Compute the SHA-256 checksum of a file.
+
+    Args:
+        filepath: The path to the file.
+
+    Returns:
+        The hexadecimal SHA-256 digest.
+    """
     h = hashlib.sha256()
     with open(filepath, "rb") as f:
         for chunk in iter(lambda: f.read(8192), b""):
@@ -80,7 +187,19 @@ def compute_checksum(filepath):
     return h.hexdigest()
 
 
-def validate_api_data(data):
+def validate_api_data(data: Any) -> Tuple[bool, Optional[str]]:
+    """Validate that API data conforms to the required schema.
+
+    Checks that data is a list of dicts, each containing all
+    fields listed in SCHEMA_REQUIRED_FIELDS.
+
+    Args:
+        data: The data to validate.
+
+    Returns:
+        A tuple of (is_valid, error_message). error_message is
+        None if validation passes.
+    """
     if not isinstance(data, list):
         return False, "Data is not a list"
     for i, item in enumerate(data):
@@ -92,7 +211,16 @@ def validate_api_data(data):
     return True, None
 
 
-def load_bundled_data():
+def load_bundled_data() -> Optional[List[Dict[str, Any]]]:
+    """Load and validate the bundled apis.json data.
+
+    Verifies the file checksum and schema before returning.
+    Falls back to returning None if the data is invalid or
+    cannot be read.
+
+    Returns:
+        The parsed API data list, or None on failure.
+    """
     checksum_path = os.path.join(DATA_DIR, "apis.json.sha256")
     if os.path.exists(checksum_path):
         with open(checksum_path, "r") as f:
@@ -113,13 +241,31 @@ def load_bundled_data():
     return data
 
 
-def get_cache_path(api_name):
+def get_cache_path(api_name: str) -> str:
+    """Get the filesystem path for the cache file of an API.
+
+    The cache directory is created if it does not exist.
+
+    Args:
+        api_name: The name of the API.
+
+    Returns:
+        The absolute path to the cache JSON file.
+    """
     os.makedirs(CACHE_DIR, exist_ok=True)
     safe_name = api_name.lower().replace(" ", "_").replace("/", "_")
     return os.path.join(CACHE_DIR, f"{safe_name}.json")
 
 
-def read_cache(api_name):
+def read_cache(api_name: str) -> Optional[Any]:
+    """Read cached proxy data for an API from disk.
+
+    Args:
+        api_name: The name of the API.
+
+    Returns:
+        The cached data if found and valid, or None.
+    """
     cache_path = get_cache_path(api_name)
     if os.path.exists(cache_path):
         try:
@@ -130,7 +276,13 @@ def read_cache(api_name):
     return None
 
 
-def write_cache(api_name, data):
+def write_cache(api_name: str, data: Any) -> None:
+    """Write proxy response data to the cache file for an API.
+
+    Args:
+        api_name: The name of the API.
+        data: The data to cache.
+    """
     cache_path = get_cache_path(api_name)
     try:
         with open(cache_path, "w", encoding="utf-8") as f:
@@ -140,17 +292,20 @@ def write_cache(api_name, data):
 
 
 @app.route("/")
-def index():
+def index() -> str:
+    """Serve the main index HTML page."""
     return send_from_directory(get_static_path(), "index.html")
 
 
 @app.route("/static/<path:filename>")
-def static_files(filename):
+def static_files(filename: str) -> str:
+    """Serve a static file from the static directory."""
     return send_from_directory(get_static_path(), filename)
 
 
 @app.route("/api/data")
-def api_data():
+def api_data() -> Any:
+    """Return the full bundled API data as JSON."""
     data = load_bundled_data()
     if data is None:
         return jsonify({"error": "Failed to load API data"}), 500
@@ -158,7 +313,8 @@ def api_data():
 
 
 @app.route("/api/categories")
-def api_categories():
+def api_categories() -> Any:
+    """Return a sorted list of unique API categories."""
     data = load_bundled_data()
     if data is None:
         return jsonify({"error": "Failed to load API data"}), 500
@@ -167,10 +323,28 @@ def api_categories():
 
 
 @app.route("/api/proxy/<api_name>", methods=["GET"])
-def proxy_fetch(api_name):
+def proxy_fetch(api_name: str) -> Any:
+    """Proxy a request to an external API endpoint.
+
+    Validates the target URL for SSRF safety, enforces per-IP
+    rate limiting, and serves cached data when available.
+
+    Args:
+        api_name: The name of the API to proxy.
+
+    Returns:
+        JSON response with the proxied data or an error message.
+    """
+    client_ip = request.remote_addr
+    if not check_rate_limit(client_ip):
+        return jsonify({"error": "Rate limit exceeded. Try again later."}), 429
+
     base_url = PROXY_ENDPOINTS.get(api_name.lower())
     if not base_url:
         return jsonify({"error": f"Unknown API: {api_name}"}), 404
+
+    if not is_safe_url(base_url):
+        return jsonify({"error": f"Proxy target for {api_name} is not allowed"}), 403
 
     cached = read_cache(api_name)
     if cached is not None:
@@ -203,7 +377,8 @@ def proxy_fetch(api_name):
 
 
 @app.route("/api/cache/list")
-def list_cache():
+def list_cache() -> Any:
+    """Return a list of cached API names."""
     if not os.path.exists(CACHE_DIR):
         return jsonify([])
     files = [f for f in os.listdir(CACHE_DIR) if f.endswith(".json")]
@@ -211,7 +386,8 @@ def list_cache():
 
 
 @app.route("/api/cache/clear", methods=["POST"])
-def clear_cache():
+def clear_cache() -> Any:
+    """Clear all cached proxy data files."""
     if not os.path.exists(CACHE_DIR):
         return jsonify({"message": "Cache already empty"})
     for f in os.listdir(CACHE_DIR):
@@ -221,12 +397,14 @@ def clear_cache():
 
 
 @app.errorhandler(404)
-def not_found(e):
+def not_found(e: Exception) -> Any:
+    """Handle 404 errors with a JSON response."""
     return jsonify({"error": "Not found"}), 404
 
 
 @app.errorhandler(500)
-def internal_error(e):
+def internal_error(e: Exception) -> Any:
+    """Handle 500 errors with a JSON response."""
     return jsonify({"error": "Internal server error"}), 500
 
 
