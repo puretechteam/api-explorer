@@ -4,15 +4,16 @@ Provides a Flask-based web application for exploring REST APIs,
 including a proxy endpoint, caching, and data validation.
 """
 
-import os
-import sys
-import json
 import hashlib
 import ipaddress
-import time
+import json
 import logging
-from typing import Any, Dict, List, Optional, Tuple, Union
-from flask import Flask, jsonify, send_from_directory, request
+import os
+import sys
+import time
+from typing import Any
+
+from flask import Flask, jsonify, request, send_from_directory
 
 try:
     import requests
@@ -187,7 +188,7 @@ def compute_checksum(filepath: str) -> str:
     return h.hexdigest()
 
 
-def validate_api_data(data: Any) -> Tuple[bool, Optional[str]]:
+def validate_api_data(data: Any) -> tuple[bool, str | None]:
     """Validate that API data conforms to the required schema.
 
     Checks that data is a list of dicts, each containing all
@@ -211,7 +212,7 @@ def validate_api_data(data: Any) -> Tuple[bool, Optional[str]]:
     return True, None
 
 
-def load_bundled_data() -> Optional[List[Dict[str, Any]]]:
+def load_bundled_data() -> list[dict[str, Any]] | None:
     """Load and validate the bundled apis.json data.
 
     Verifies the file checksum and schema before returning.
@@ -231,7 +232,7 @@ def load_bundled_data() -> Optional[List[Dict[str, Any]]]:
     try:
         with open(BUNDLED_APIS_FILE, "r", encoding="utf-8") as f:
             data = json.load(f)
-    except (json.JSONDecodeError, IOError) as e:
+    except (OSError, json.JSONDecodeError) as e:
         app.logger.error("Failed to load bundled apis.json: %s", e)
         return None
     valid, msg = validate_api_data(data)
@@ -257,7 +258,7 @@ def get_cache_path(api_name: str) -> str:
     return os.path.join(CACHE_DIR, f"{safe_name}.json")
 
 
-def read_cache(api_name: str) -> Optional[Any]:
+def read_cache(api_name: str) -> Any | None:
     """Read cached proxy data for an API from disk.
 
     Args:
@@ -271,7 +272,7 @@ def read_cache(api_name: str) -> Optional[Any]:
         try:
             with open(cache_path, "r", encoding="utf-8") as f:
                 return json.load(f)
-        except (json.JSONDecodeError, IOError):
+        except (OSError, json.JSONDecodeError):
             return None
     return None
 
@@ -287,7 +288,7 @@ def write_cache(api_name: str, data: Any) -> None:
     try:
         with open(cache_path, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2)
-    except IOError:
+    except OSError:
         pass
 
 

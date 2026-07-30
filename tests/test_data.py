@@ -1,12 +1,10 @@
 import os
-import json
-import pytest
+
 from app import (
     compute_checksum,
-    validate_api_data,
-    load_bundled_data,
     get_data_path,
-    SCHEMA_REQUIRED_FIELDS,
+    load_bundled_data,
+    validate_api_data,
 )
 
 DATA_DIR = get_data_path()
