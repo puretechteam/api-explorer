@@ -224,13 +224,13 @@ def load_bundled_data() -> list[dict[str, Any]] | None:
     """
     checksum_path = os.path.join(DATA_DIR, "apis.json.sha256")
     if os.path.exists(checksum_path):
-        with open(checksum_path, "r") as f:
+        with open(checksum_path) as f:
             expected_hash = f.read().strip()
         actual_hash = compute_checksum(BUNDLED_APIS_FILE)
         if actual_hash != expected_hash:
             app.logger.warning("Bundled apis.json checksum mismatch — data may be corrupted")
     try:
-        with open(BUNDLED_APIS_FILE, "r", encoding="utf-8") as f:
+        with open(BUNDLED_APIS_FILE, encoding="utf-8") as f:
             data = json.load(f)
     except (OSError, json.JSONDecodeError) as e:
         app.logger.error("Failed to load bundled apis.json: %s", e)
@@ -270,7 +270,7 @@ def read_cache(api_name: str) -> Any | None:
     cache_path = get_cache_path(api_name)
     if os.path.exists(cache_path):
         try:
-            with open(cache_path, "r", encoding="utf-8") as f:
+            with open(cache_path, encoding="utf-8") as f:
                 return json.load(f)
         except (OSError, json.JSONDecodeError):
             return None

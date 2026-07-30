@@ -77,7 +77,7 @@ def test_checksum_file_exists():
 def test_checksum_verification():
     assert os.path.isfile(BUNDLED_APIS_FILE)
     actual_hash = compute_checksum(BUNDLED_APIS_FILE)
-    with open(CHECKSUM_FILE, 'r') as f:
+    with open(CHECKSUM_FILE) as f:
         expected_hash = f.read().strip()
     assert actual_hash == expected_hash
 
